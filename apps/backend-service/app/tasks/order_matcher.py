@@ -9,6 +9,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from app.core.database import async_session_factory
+from app.core.redis import get_redis
 from app.models.order import Order, OrderStatus, OrderType
 from app.services.market_data_service import MarketDataService
 from app.services.matching_engine import MatchingEngine
@@ -38,7 +39,7 @@ async def match_open_orders():
 
             logger.info(f"Order matcher: checking {len(open_orders)} open orders")
 
-            market_data = MarketDataService(redis=None)
+            market_data = MarketDataService(redis=get_redis())
             engine = MatchingEngine(db)
 
             # Group by symbol to minimize API calls

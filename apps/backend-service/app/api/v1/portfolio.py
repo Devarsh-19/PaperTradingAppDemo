@@ -5,6 +5,7 @@ Portfolio routes — summary, positions, trades, and reset.
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.redis import get_redis
 from app.schemas.portfolio import (
     PortfolioSummaryResponse,
     PositionResponse,
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/portfolio", tags=["Portfolio"])
 
 
 def _get_portfolio_service(db) -> PortfolioService:
-    market_data = MarketDataService(redis=None)
+    market_data = MarketDataService(redis=get_redis())
     return PortfolioService(db, market_data)
 
 
