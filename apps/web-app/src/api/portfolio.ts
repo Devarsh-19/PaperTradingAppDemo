@@ -9,8 +9,8 @@ export const portfolioApi = {
     const response = await apiClient.get('/api/v1/portfolio/positions');
     return response.data;
   },
-  getTrades: async (skip = 0, limit = 50) => {
-    const response = await apiClient.get(`/api/v1/portfolio/trades?skip=${skip}&limit=${limit}`);
+  getTrades: async (page = 1, page_size = 50) => {
+    const response = await apiClient.get(`/api/v1/portfolio/trades?page=${page}&page_size=${page_size}`);
     return response.data;
   },
   reset: async () => {

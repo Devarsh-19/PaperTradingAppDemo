@@ -5,8 +5,8 @@ export const ordersApi = {
     const response = await apiClient.post('/api/v1/orders', orderData);
     return response.data;
   },
-  getAll: async (skip = 0, limit = 50, status?: string) => {
-    const url = `/api/v1/orders?skip=${skip}&limit=${limit}${status ? `&status=${status}` : ''}`;
+  getAll: async (page = 1, page_size = 50, status?: string) => {
+    const url = `/api/v1/orders?page=${page}&page_size=${page_size}${status ? `&status=${status}` : ''}`;
     const response = await apiClient.get(url);
     return response.data;
   },

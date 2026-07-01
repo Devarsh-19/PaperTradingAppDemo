@@ -1,10 +1,12 @@
 import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { Bell, Search, User } from 'lucide-react';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { Bell, Search, User, Wifi, WifiOff } from 'lucide-react';
 import './Header.css';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const { isConnected } = useWebSocket();
 
   return (
     <header className="header">
@@ -19,6 +21,10 @@ export const Header: React.FC = () => {
           <span className="font-mono font-bold text-green">
             ${user?.initial_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </span>
+        </div>
+
+        <div title={isConnected ? 'Connected to real-time feed' : 'Disconnected'} style={{ display: 'flex', alignItems: 'center' }}>
+          {isConnected ? <Wifi size={16} className="text-green" /> : <WifiOff size={16} className="text-red" />}
         </div>
 
         <button className="icon-btn">

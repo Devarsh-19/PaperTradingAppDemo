@@ -3,33 +3,103 @@ import { Card } from '../components/ui/Card';
 import { CandlestickChart } from '../components/charts/CandlestickChart';
 import { OrderForm } from '../components/orders/OrderForm';
 import { useAuthStore } from '../stores/authStore';
-
-// Mock candlestick data
-const mockData = [
-  { time: '2023-10-01', open: 150, high: 155, low: 148, close: 152 },
-  { time: '2023-10-02', open: 152, high: 156, low: 151, close: 155 },
-  { time: '2023-10-03', open: 155, high: 160, low: 153, close: 158 },
-  { time: '2023-10-04', open: 158, high: 159, low: 150, close: 151 },
-  { time: '2023-10-05', open: 151, high: 154, low: 149, close: 153 },
-  { time: '2023-10-06', open: 153, high: 158, low: 152, close: 157 },
-  { time: '2023-10-07', open: 157, high: 162, low: 155, close: 160 },
-  { time: '2023-10-08', open: 160, high: 161, low: 158, close: 159 },
-  { time: '2023-10-09', open: 159, high: 165, low: 158, close: 164 },
-  { time: '2023-10-10', open: 164, high: 168, low: 162, close: 167 },
-  { time: '2023-10-11', open: 167, high: 170, low: 165, close: 169 },
-  { time: '2023-10-12', open: 169, high: 175, low: 168, close: 174 },
-  { time: '2023-10-13', open: 174, high: 176, low: 170, close: 171 },
-];
+import { marketApi } from '../api/market';
+import { ordersApi } from '../api/orders';
+import { Order } from '../types/api';
+import { Badge } from '../components/ui/Badge';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export const TradePage: React.FC = () => {
   const { user } = useAuthStore();
   const [symbol, setSymbol] = useState('AAPL');
   const [currentPrice, setCurrentPrice] = useState(171.50);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [openOrders, setOpenOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const { isConnected, subscribe, subscribeToSymbols, unsubscribeFromSymbols } = useWebSocket();
 
-  const handleOrderSubmit = (order: any) => {
-    console.log("Order submitted:", order);
-    // In a real app, dispatch to orderApi
-    alert(`Order submitted: ${order.side} ${order.quantity} ${order.symbol} @ ${order.orderType}`);
+  const fetchChartData = async (sym: string) => {
+    try {
+      const data = await marketApi.getHistory(sym, '1mo', '1d');
+      if (data && data.history) {
+        setChartData(data.history);
+      }
+    } catch (e) {
+      console.error("Failed to fetch chart", e);
+    }
+  };
+
+  const fetchOpenOrders = async () => {
+    try {
+      const data = await ordersApi.getAll(1, 50, 'OPEN');
+      setOpenOrders(data.items || data);
+    } catch (e) {
+      console.error("Failed to fetch open orders", e);
+    }
+  };
+
+  const fetchPrice = async (sym: string) => {
+    try {
+      const quote = await marketApi.getQuote(sym);
+      setCurrentPrice(quote.price);
+    } catch (e) {
+      console.error("Failed to fetch price", e);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    fetchChartData(symbol);
+    fetchOpenOrders();
+    fetchPrice(symbol);
+    setLoading(false);
+  }, [symbol]);
+
+  useEffect(() => {
+    if (isConnected) {
+      subscribeToSymbols([symbol]);
+    }
+    return () => {
+      if (isConnected) {
+        unsubscribeFromSymbols([symbol]);
+      }
+    };
+  }, [symbol, isConnected, subscribeToSymbols, unsubscribeFromSymbols]);
+
+  useEffect(() => {
+    const unsubscribePrice = subscribe('price_update', (data) => {
+      if (data && data[symbol]) {
+        setCurrentPrice(data[symbol].price);
+      }
+    });
+
+    const unsubscribeOrder = subscribe('order_update', (data) => {
+      // Refresh orders when an order update happens
+      fetchOpenOrders();
+    });
+
+    return () => {
+      unsubscribePrice();
+      unsubscribeOrder();
+    };
+  }, [symbol, subscribe]);
+
+  const handleOrderSubmit = async (orderData: any) => {
+    try {
+      await ordersApi.create({
+        symbol: orderData.symbol,
+        order_type: orderData.orderType,
+        side: orderData.side,
+        quantity: orderData.quantity,
+        limit_price: orderData.limitPrice,
+        stop_price: orderData.stopPrice
+      });
+      alert(`Order submitted successfully`);
+      fetchOpenOrders();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Order submission failed');
+    }
   };
 
   return (
@@ -40,7 +110,26 @@ export const TradePage: React.FC = () => {
         {/* ── Left Column: Chart ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <Card noPadding style={{ flex: 1, overflow: 'hidden' }}>
-            <CandlestickChart data={mockData} symbol={symbol} />
+            <div style={{ padding: 'var(--space-md)', display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-primary)' }}>
+              <input 
+                type="text" 
+                value={symbol} 
+                onChange={e => setSymbol(e.target.value.toUpperCase())}
+                className="input-field" 
+                style={{ width: '120px', padding: '0.5rem' }} 
+                placeholder="Symbol"
+              />
+              <div style={{ padding: '0.5rem', fontWeight: 700, fontSize: '1.2rem', color: 'var(--accent-blue)' }}>
+                ${currentPrice.toFixed(2)}
+              </div>
+            </div>
+            {chartData.length > 0 ? (
+              <CandlestickChart data={chartData} symbol={symbol} />
+            ) : (
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                {loading ? 'Loading chart...' : 'No chart data available'}
+              </div>
+            )}
           </Card>
           
           <Card style={{ height: '200px' }} title="Market Depth (Level 2)">
@@ -61,10 +150,27 @@ export const TradePage: React.FC = () => {
             />
           </Card>
           
-          <Card title="Open Orders" style={{ flex: 1 }}>
-            <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-              No open orders
-            </div>
+          <Card title="Open Orders" style={{ flex: 1, overflowY: 'auto' }}>
+            {openOrders.length === 0 ? (
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                No open orders
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {openOrders.map(order => (
+                  <div key={order.id} style={{ padding: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', fontSize: '0.875rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>{order.symbol}</span>
+                      <span className={order.side === 'BUY' ? 'text-green' : 'text-red'}>{order.side}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                      <span>{order.quantity} @ {order.order_type === 'MARKET' ? 'MKT' : `$${order.limit_price || order.stop_price}`}</span>
+                      <Badge variant="warning">OPEN</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 

@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
-// Placeholder Pages
-const LoginPage = () => <div className="page-container"><h1 className="page-title">Login</h1></div>;
-const RegisterPage = () => <div className="page-container"><h1 className="page-title">Register</h1></div>;
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TradePage } from './pages/TradePage';
 import { PortfolioPage } from './pages/PortfolioPage';
@@ -19,14 +19,16 @@ const App: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        <Route element={<Layout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/trade" element={<TradePage />} />
-          <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/watchlist" element={<WatchlistPage />} />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trade" element={<TradePage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

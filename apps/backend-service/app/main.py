@@ -14,6 +14,7 @@ from loguru import logger
 
 from app.core.config import get_settings
 from app.core.database import engine
+from app.core.redis import init_redis, close_redis
 
 # ── Import routers ──
 from app.api.v1.auth import router as auth_router
@@ -53,6 +54,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"   Environment: {settings.environment}")
     logger.info(f"   Debug: {settings.debug}")
 
+    # ── Connect Redis ──
+    await init_redis()
+
     # ── Start background tasks ──
     scheduler.add_job(
         sync_prices,
@@ -76,6 +80,7 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ──
     logger.info("Shutting down...")
     scheduler.shutdown(wait=False)
+    await close_redis()
     await engine.dispose()
     logger.info("✅ Shutdown complete")
 

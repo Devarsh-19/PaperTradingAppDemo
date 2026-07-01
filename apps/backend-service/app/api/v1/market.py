@@ -5,6 +5,7 @@ Market data routes — quotes, history, search, trending.
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.redis import get_redis
 from app.schemas.market import (
     BatchQuoteRequest,
     HistoryResponse,
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/market", tags=["Market Data"])
 
 
 def _get_market_service() -> MarketDataService:
-    return MarketDataService(redis=None)
+    return MarketDataService(redis=get_redis())
 
 
 @router.get(

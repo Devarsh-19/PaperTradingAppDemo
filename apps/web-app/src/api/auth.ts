@@ -13,4 +13,12 @@ export const authApi = {
     const response = await apiClient.get('/api/v1/auth/me');
     return response.data;
   },
+  refresh: async (refreshToken: string) => {
+    // We use axios directly here to avoid interceptor loops if using apiClient
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const response = await import('axios').then(axios => 
+      axios.default.post(`${API_URL}/api/v1/auth/refresh`, { refresh_token: refreshToken })
+    );
+    return response.data;
+  },
 };

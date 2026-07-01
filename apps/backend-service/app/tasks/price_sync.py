@@ -5,6 +5,7 @@ to connected WebSocket clients.
 
 from loguru import logger
 
+from app.core.redis import get_redis
 from app.services.market_data_service import MarketDataService
 from app.websocket.manager import manager
 
@@ -23,7 +24,7 @@ async def sync_prices():
 
     logger.debug(f"Price sync: fetching {len(symbols)} symbols: {symbols}")
 
-    market_data = MarketDataService(redis=None)
+    market_data = MarketDataService(redis=get_redis())
 
     for symbol in symbols:
         try:

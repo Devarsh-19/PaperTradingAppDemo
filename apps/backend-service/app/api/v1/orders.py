@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.redis import get_redis
 from app.models.order import OrderStatus
 from app.schemas.order import OrderCreateRequest, OrderListResponse, OrderResponse
 from app.services.market_data_service import MarketDataService
@@ -17,8 +18,8 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
 def _get_order_service(db) -> OrderService:
-    """Create an OrderService with a MarketDataService (no Redis for now)."""
-    market_data = MarketDataService(redis=None)
+    """Create an OrderService with a MarketDataService."""
+    market_data = MarketDataService(redis=get_redis())
     return OrderService(db, market_data)
 
 

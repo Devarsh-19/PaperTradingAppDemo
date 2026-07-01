@@ -5,6 +5,7 @@ Leaderboard routes — global ranking and user's own rank.
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.redis import get_redis
 from app.services.leaderboard_service import (
     LeaderboardEntry,
     LeaderboardResponse,
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/leaderboard", tags=["Leaderboard"])
 
 
 def _get_leaderboard_service(db) -> LeaderboardService:
-    market_data = MarketDataService(redis=None)
+    market_data = MarketDataService(redis=get_redis())
     return LeaderboardService(db, market_data)
 
 

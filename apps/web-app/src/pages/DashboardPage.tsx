@@ -4,27 +4,32 @@ import { Badge } from '../components/ui/Badge';
 import { useAuthStore } from '../stores/authStore';
 import { portfolioApi } from '../api/portfolio';
 import { TrendingUp, TrendingDown, DollarSign, Wallet, Activity } from 'lucide-react';
+import { PortfolioSummary, Trade } from '../types/api';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for initial UI dev
   useEffect(() => {
-    // In a real app, we'd fetch this from portfolioApi
-    setTimeout(() => {
-      setSummary({
-        totalValue: 105432.50,
-        cashBalance: 45432.50,
-        investedAmount: 60000.00,
-        todayPnl: 1250.75,
-        todayPnlPercent: 1.2,
-        totalPnl: 5432.50,
-        totalPnlPercent: 5.43,
-      });
-      setLoading(false);
-    }, 500);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const summaryData = await portfolioApi.getSummary();
+        setSummary(summaryData);
+        
+        const tradesData = await portfolioApi.getTrades(1, 5);
+        setRecentTrades(tradesData.items || tradesData);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
   }, []);
 
   if (loading) {
@@ -38,8 +43,12 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  const isProfit = summary?.totalPnl >= 0;
-  const isTodayProfit = summary?.todayPnl >= 0;
+  if (error) {
+    return <div className="page-container text-red">{error}</div>;
+  }
+
+  const isProfit = (summary?.total_pnl ?? 0) >= 0;
+  const isTodayProfit = (summary?.today_pnl ?? 0) >= 0;
 
   return (
     <div className="page-container">
@@ -48,8 +57,8 @@ export const DashboardPage: React.FC = () => {
           <h1 className="page-title" style={{ marginBottom: 'var(--space-xs)' }}>Dashboard</h1>
           <p className="text-secondary">Welcome back, {user?.username}. Here's your portfolio overview.</p>
         </div>
-        <Badge variant={isProfit ? 'success' : 'danger'}>
-          {isProfit ? '+' : ''}{summary?.totalPnlPercent.toFixed(2)}% All Time
+          <Badge variant={isProfit ? 'success' : 'danger'}>
+          {isProfit ? '+' : ''}{summary?.total_pnl_percent?.toFixed(2)}% All Time
         </Badge>
       </div>
 
@@ -60,7 +69,7 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-secondary text-sm">Portfolio Value</p>
               <h2 style={{ fontSize: '1.8rem', marginTop: 'var(--space-xs)' }}>
-                ${summary?.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${summary?.total_value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
             </div>
             <div style={{ padding: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
@@ -74,11 +83,11 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-secondary text-sm">Today's P&L</p>
               <h2 style={{ fontSize: '1.8rem', marginTop: 'var(--space-xs)', color: isTodayProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                {isTodayProfit ? '+' : '-'}${Math.abs(summary?.todayPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {isTodayProfit ? '+' : '-'}${Math.abs(summary?.today_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <p className="text-sm" style={{ color: isTodayProfit ? 'var(--accent-green)' : 'var(--accent-red)', marginTop: '4px' }}>
                 {isTodayProfit ? <TrendingUp size={14} style={{display: 'inline', verticalAlign: 'text-bottom'}}/> : <TrendingDown size={14} style={{display: 'inline', verticalAlign: 'text-bottom'}}/>}
-                {' '} {Math.abs(summary?.todayPnlPercent).toFixed(2)}%
+                {' '} {Math.abs(summary?.today_pnl_percent || 0).toFixed(2)}%
               </p>
             </div>
             <div style={{ padding: '8px', background: isTodayProfit ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)', borderRadius: 'var(--radius-md)' }}>
@@ -92,7 +101,7 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-secondary text-sm">Total P&L</p>
               <h2 style={{ fontSize: '1.8rem', marginTop: 'var(--space-xs)', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                {isProfit ? '+' : '-'}${Math.abs(summary?.totalPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {isProfit ? '+' : '-'}${Math.abs(summary?.total_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
             </div>
             <div style={{ padding: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
@@ -106,7 +115,7 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-secondary text-sm">Available Cash</p>
               <h2 style={{ fontSize: '1.8rem', marginTop: 'var(--space-xs)' }}>
-                ${summary?.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${summary?.cash_balance?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
             </div>
             <div style={{ padding: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
@@ -130,33 +139,27 @@ export const DashboardPage: React.FC = () => {
           <Card title="Recent Activity" className="animate-slide-up" noPadding style={{ animationDelay: '250ms', height: '400px' }}>
             <table className="data-table">
               <tbody>
-                <tr>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>AAPL</div>
-                    <div className="text-xs text-muted">Bought 10 shares</div>
-                  </td>
-                  <td className="text-right font-mono">
-                    $150.25
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>TSLA</div>
-                    <div className="text-xs text-muted">Sold 5 shares</div>
-                  </td>
-                  <td className="text-right font-mono text-green">
-                    $245.10
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>MSFT</div>
-                    <div className="text-xs text-muted">Bought 20 shares</div>
-                  </td>
-                  <td className="text-right font-mono">
-                    $330.00
-                  </td>
-                </tr>
+                {recentTrades.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="text-center text-muted" style={{ padding: 'var(--space-lg)' }}>
+                      No recent activity
+                    </td>
+                  </tr>
+                ) : (
+                  recentTrades.map((trade) => (
+                    <tr key={trade.id}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{trade.symbol}</div>
+                        <div className="text-xs text-muted">
+                          {trade.side === 'BUY' ? 'Bought' : 'Sold'} {trade.quantity} shares
+                        </div>
+                      </td>
+                      <td className={`text-right font-mono ${trade.side === 'BUY' ? 'text-red' : 'text-green'}`}>
+                        {trade.side === 'BUY' ? '-' : '+'}${trade.total_value.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </Card>

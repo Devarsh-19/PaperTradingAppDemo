@@ -1,24 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { ordersApi } from '../api/orders';
+import { Order } from '../types/api';
 
 export const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data
-  const mockOrders = [
-    { id: '1', symbol: 'AAPL', type: 'MARKET', side: 'BUY', qty: 10, status: 'FILLED', date: '2023-10-15 10:30', price: 171.50 },
-    { id: '2', symbol: 'TSLA', type: 'LIMIT', side: 'SELL', qty: 5, status: 'OPEN', date: '2023-10-15 11:45', limit: 250.00 },
-    { id: '3', symbol: 'MSFT', type: 'MARKET', side: 'BUY', qty: 20, status: 'FILLED', date: '2023-10-14 15:20', price: 330.00 },
-    { id: '4', symbol: 'GOOGL', type: 'LIMIT', side: 'BUY', qty: 15, status: 'CANCELLED', date: '2023-10-13 09:15', limit: 125.00 },
-  ];
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const data = await ordersApi.getAll();
+      setOrders(data.items || data);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 300);
+    fetchOrders();
   }, []);
 
-  if (loading) {
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await ordersApi.cancel(orderId);
+      // Refresh list
+      fetchOrders();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to cancel order');
+    }
+  };
+
+  if (loading && orders.length === 0) {
     return <div className="page-container"><div className="skeleton" style={{ height: '400px' }} /></div>;
+  }
+
+  if (error) {
+    return <div className="page-container text-red">{error}</div>;
   }
 
   const getStatusBadge = (status: string) => {
@@ -54,26 +76,38 @@ export const OrdersPage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {mockOrders.map((order) => (
-              <tr key={order.id}>
-                <td className="text-muted text-sm">{order.date}</td>
-                <td style={{ fontWeight: 600 }}>{order.symbol}</td>
-                <td>{order.type}</td>
-                <td className={order.side === 'BUY' ? 'text-green' : 'text-red'}>{order.side}</td>
-                <td className="text-right font-mono">{order.qty}</td>
-                <td className="text-right font-mono">
-                  ${(order.price || order.limit)?.toFixed(2)}
-                </td>
-                <td className="text-right">{getStatusBadge(order.status)}</td>
-                <td className="text-right">
-                  {order.status === 'OPEN' && (
-                    <button className="text-red" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>
-                      Cancel
-                    </button>
-                  )}
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center text-muted" style={{ padding: 'var(--space-lg)' }}>
+                  No orders found
                 </td>
               </tr>
-            ))}
+            ) : (
+              orders.map((order) => (
+                <tr key={order.id}>
+                  <td className="text-muted text-sm">{new Date(order.created_at).toLocaleString()}</td>
+                  <td style={{ fontWeight: 600 }}>{order.symbol}</td>
+                  <td>{order.order_type}</td>
+                  <td className={order.side === 'BUY' ? 'text-green' : 'text-red'}>{order.side}</td>
+                  <td className="text-right font-mono">{order.quantity}</td>
+                  <td className="text-right font-mono">
+                    ${(order.average_fill_price || order.limit_price || order.stop_price || 0)?.toFixed(2)}
+                  </td>
+                  <td className="text-right">{getStatusBadge(order.status)}</td>
+                  <td className="text-right">
+                    {order.status === 'OPEN' && (
+                      <button 
+                        className="text-red" 
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                        onClick={() => handleCancelOrder(order.id)}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </Card>
